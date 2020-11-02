@@ -172,10 +172,6 @@ def main(c1, c2):
     for row in df2.values:
         patient_data2[row[0]] = [row[1], row[2]]
 
-    """
-    load data
-    KIRC and STAD
-    """
 
     df = pd.read_csv("new_data.csv", index_col=None)
     c1 = df[df["cancer"] == opt.c1]

@@ -24,7 +24,6 @@ cancer_types = [
     "UCEC",
     "UVM",
 ]
-from consensus import ConsensusCluster
 from cc2 import consensus_clustering
 import collections
 import numpy as np

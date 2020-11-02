@@ -25,7 +25,6 @@ cancer_types = [
     "UVM",
 ]
 from numpy.core.numeric import nan
-from consensus import ConsensusCluster
 from cc2 import consensus_clustering
 import collections
 import numpy as np
