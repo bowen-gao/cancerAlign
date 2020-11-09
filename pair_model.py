@@ -42,6 +42,33 @@ KIRC early -> STAD early (evaluation)
 
 from csv import writer
 
+cancer_types = [
+    "BRCA",
+    "BLCA",
+    "CESC",
+    "CHOL",
+    "COAD",
+    "DLBC",
+    "GBM",
+    "HNSC",
+    "KICH",
+    "KIRC",
+    "LGG",
+    "LIHC",
+    "LUAD",
+    "LUSC",
+    "OV",
+    "PAAD",
+    "PRAD",
+    "READ",
+    "SARC",
+    "STES",
+    "TGCT",
+    "THCA",
+    "UCEC",
+    "UVM",
+]
+
 
 def append_list_as_row(file_name, list_of_elem):
     # Open file in append mode
@@ -103,7 +130,7 @@ def get_cluster(X, n):
     kmeans = KMeans(n_clusters=n, random_state=0).fit(X)
 
 
-def main(c1, c2):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--n_epochs", type=int, default=100, help="number of epochs of training"
@@ -142,8 +169,8 @@ def main(c1, c2):
     parser.add_argument(
         "--sample_interval", type=int, default=400, help="interval betwen image samples"
     )
-    parser.add_argument("--c1", type=str, default="LUAD", help="cancer type for c1")
-    parser.add_argument("--c2", type=str, default="STAD", help="cancer type for c2")
+    parser.add_argument("--target", type=str, default="LUAD", help="cancer type for c1")
+    parser.add_argument("--source", type=str, default="STAD", help="cancer type for c2")
     parser.add_argument(
         "--save_path", type=str, default="models/g", help="model save path"
     )
@@ -154,10 +181,8 @@ def main(c1, c2):
         help="top n genes to calculate correlation",
     )
     opt = parser.parse_args()
-    opt.c1 = c1
-    opt.c2 = c2
-    print(opt)
-
+    c1 = opt.target
+    c2 = opt.source
     df1 = pd.read_csv(
         "raw_survival/" + opt.c1 + "_surv.txt_clean", index_col=None, sep="\t"
     )
@@ -329,40 +354,6 @@ def main(c1, c2):
         with torch.no_grad():
             gen_gene = generator(data_c1)
             gen_gene = gen_gene.cpu().detach().numpy()
-            """
-            c2_count_generated = {}
-            for i, data in enumerate(gen_gene):
-                for (gene, score) in enumerate(data):
-                    gene = index_2_name[gene]
-                    if gene in c2_count_generated:
-                        c2_count_generated[gene] += score
-                    else:
-                        c2_count_generated[gene] = score
-            sorted_count_c2 = sorted(
-                c2_count.items(), key=lambda kv: kv[1], reverse=True
-            )
-            sorted_count_c2_generated = sorted(
-                c2_count_generated.items(), key=lambda kv: kv[1], reverse=True
-            )
-
-            name_2_index = {}
-            count = 0
-            for i, (a, b) in enumerate(sorted_count_c2):
-                if i < opt.top_n:
-                    name_2_index[a] = count
-                    count += 1
-            colis = [0] * count
-            colis_gen = [0] * count
-
-            for (a, b) in sorted_count_c2:
-                if a in name_2_index:
-                    index = name_2_index[a]
-                    colis[index] = b
-            for (a, b) in sorted_count_c2_generated:
-                if a in name_2_index:
-                    index = name_2_index[a]
-                    colis_gen[index] = b
-            """
             from scipy import stats
 
             # print(stats.spearmanr(colis, colis_gen, axis=0))
@@ -475,38 +466,5 @@ def main(c1, c2):
 
 
 if __name__ == "__main__":
-    cancer_types = [
-        "BRCA",
-        "BLCA",
-        "CESC",
-        "CHOL",
-        "COAD",
-        "DLBC",
-        "GBM",
-        "HNSC",
-        "KICH",
-        "KIRC",
-        "LGG",
-        "LIHC",
-        "LUAD",
-        "LUSC",
-        "OV",
-        "PAAD",
-        "PRAD",
-        "READ",
-        "SARC",
-        "STES",
-        "TGCT",
-        "THCA",
-        "UCEC",
-        "UVM",
-    ]
-
-    for c1 in cancer_types:
-        for c2 in cancer_types:
-            if c1 != c2:
-                print(c1, c2)
-                os.mkdir("all_models/" + c1 + "_" + c2)
-
-                main(c1, c2)
+    main()
 
