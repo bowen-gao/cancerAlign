@@ -10,4 +10,4 @@ A preprocessed file that contains the cancer type, mutatated genes for each pati
 To run the cancerAlign for a specific target cancer type:
  <pre><code>python3 run.py  --target="cancer type name"</code></pre>
 To run and store the model of the mapping of a pair of cancer types target->source:
-<pre><code>python3 pair_model.py --c1=</code></pre>
+<pre><code>python3 pair_model.py --target="cancer type name for target cancer type" --source="cancer type name for source cancer type"</code></pre>
