@@ -3,41 +3,12 @@ import re
 from scipy import stats
 from sklearn.metrics import roc_auc_score
 from scipy.stats import f_oneway
+from scipy.stats import chi2_contingency
+
+import scipy.stats as stats
 
 
-import numpy as np
-import rpy2.robjects.numpy2ri
-from rpy2.robjects.packages import importr
-
-rpy2.robjects.numpy2ri.activate()
-
-stats = importr("stats")
-
-"""
-data = pd.read_csv("cancer_gene_census.csv")
-tumors =set()
-data = data.fillna("")
-for index, row in data.iterrows():
-    gene = row["Gene Symbol"]
-    tumor1 = row["Tumour Types(Somatic)"]
-    tumor2 = row["Tumour Types(Germline)"]
-    
-    for tumor in tumor1.split(","):
-        tumor = tumor.strip()
-        if tumor not in tumors and tumor!="":
-            tumors.add(tumor)
-    for tumor in tumor2.split(","):
-        tumor = tumor.strip()
-        if tumor not in tumors and tumor!="":
-            tumors.add(tumor)
-
-tumors=list(tumors)
-print(len(tumors),tumors)
-import numpy as np
-np.savetxt('tumors.txt',tumors,fmt="%s")
-"""
-
-data = pd.read_csv("cancer_genes_2.csv")
+data = pd.read_csv("known_cancer_genes.csv")
 # data = data.iloc[1:, :]
 # data.columns = data.iloc[0]
 # print(data)
@@ -78,21 +49,14 @@ for index, row in data.iterrows():
         if cancer == "ALL":
             for ct in cancer_types:
                 cancer_genes[ct].append(gene)
+        elif cancer == "COAD/READ":
+            cancer_genes["READ"].append(gene)
+            cancer_genes["COAD"].append(gene)
         else:
             if cancer in cancer_genes:
                 cancer_genes[cancer].append(gene)
 
 import csv
-
-
-for cancer in cancer_genes:
-    genes = cancer_genes[cancer]
-    genes = ",".join(genes)
-    cancer_genes[cancer] = genes
-with open("test.csv", "w") as f:
-    writer = csv.writer(f)
-    for row in cancer_genes.items():
-        writer.writerow(row)
 
 
 from consensus import ConsensusCluster
@@ -105,10 +69,21 @@ import Cluster_Ensembles as CE
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.decomposition import PCA
 from lifelines.statistics import multivariate_logrank_test
+import argparse
 
 count = 0
 s = 0
-for c1 in cancer_types:
+
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--target", type=str, default="LUAD", help="cancer type for target"
+    )
+    opt = parser.parse_args()
+    c1 = opt.target
+    n = 2
     df1 = pd.read_csv(
         "raw_survival/" + c1 + "_surv.txt_clean", index_col=None, sep="\t"
     )
@@ -168,7 +143,6 @@ for c1 in cancer_types:
 
     c1_data = np.array(c1_data)
     gt_genes = cancer_genes[c1]
-    gt_genes = gt_genes.split(",")
     gt_vec = np.zeros(c1_data.shape[1])
     for gene in gt_genes:
         if gene in realname2id:
@@ -177,6 +151,7 @@ for c1 in cancer_types:
                 index = name_2_index[gene_id]
                 gt_vec[index] = 1
     clusters = []
+    base_clusters = []
     sil_scores = []
     for c2 in cancer_types:
         if c1 != c2:
@@ -189,124 +164,46 @@ for c1 in cancer_types:
             # print(labels.shape)
     sil_scores = np.array(sil_scores).reshape((5, -1))
 
-    for n in range(2, 7):
-        inputs = []
-        cur_score = sil_scores[n - 2]
-        indexes = cur_score.argsort()[:5]
+    cur_score = sil_scores[n - 2]
+    indexes = cur_score.argsort()[:5]
 
-        cur_cluster = np.array(clusters)[indexes, n - 2, :].T
-        # consensus = ConsensusCluster(KMeans, 2, 7, 1000)
-        # consensus.fit(cur_cluster)
-        # gen_labels = consensus.predict()
-        cm = consensus_clustering(cur_cluster, KMeans(n_clusters=n, random_state=3))
-        cluster2 = KMeans(n_clusters=n, random_state=3).fit(1 - cm)
+    cur_cluster = np.array(clusters)[indexes, n - 2, :].T
+    # consensus = ConsensusCluster(KMeans, 2, 7, 1000)
+    # consensus.fit(cur_cluster)
+    # gen_labels = consensus.predict()
+    cm = consensus_clustering(cur_cluster, KMeans(n_clusters=n, random_state=3))
+    cluster2 = KMeans(n_clusters=n, random_state=3).fit(1 - cm)
 
-        gen_labels = cluster2.labels_
-        for i in range(n):
-            index = np.argwhere(gen_labels == i)
-            index = index.reshape(len(index))
-            inputs.append(c1_data[index])
-        if n == 2:
-            t_stat_gen, pvalue_gen = stats.ttest_ind(inputs[0], inputs[1])
-        if n == 3:
-            t_stat_gen, pvalue_gen = f_oneway(inputs[0], inputs[1], inputs[2])
-        if n == 4:
-            t_stat_gen, pvalue_gen = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3]
-            )
-        if n == 5:
-            t_stat_gen, pvalue_gen = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-            )
-        if n == 6:
-            t_stat_gen, pvalue_gen = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5]
-            )
+    gen_labels = cluster2.labels_
 
-        pvalue_gen[np.isnan(pvalue_gen)] = 1
+    new_data = c1_data.T
+    pvalue_gen = []
+    for i in range(len(new_data)):
+        conti = np.zeros((n, 2))
+        for j in range(len(new_data[i])):
+            conti[int(gen_labels[j])][int(new_data[i][j])] += 1
+        # odd, p = stats.fisher_exact(conti)
+        try:
+            _, p, _, _ = chi2_contingency(conti)
+        except:
+            p = 1
+        pvalue_gen.append(p)
 
-        pvalue_gen = pvalue_gen.astype(np.float32)
+    pvalue_gen = np.array(pvalue_gen)
 
-        if n == 2:
-            large = np.mean(inputs[0], axis=0) > np.mean(inputs[1], axis=0)
-            print(large.shape)
-            temp = []
-            for i in range(len(large)):
-                if large[i]:
-                    temp.append(1)
-                else:
-                    temp.append(pvalue_gen[i] / 2)
-            pvalue_gen = np.array(temp)
+    # pvalue_gen[np.isnan(pvalue_gen)] = 1
 
-        min_value = min(collections.Counter(gen_labels).values())
-        if min_value < 5:
-            continue
-        else:
-            break
+    pvalue_gen = pvalue_gen.astype(np.float32)
+    dic = {}
+    for i in range(len(pvalue_gen)):
+        id_name = index_2_name[i]
+        if id_name in id2realname:
+            real_name = id2realname[id_name]
+            dic[real_name] = pvalue_gen[i]
 
-    for n in range(2, 7):
-        inputs = []
-        c1_new = PCA(n_components=32, random_state=2).fit_transform(c1_data)
-        dis_mat1 = euclidean_distances(c1_new, c1_new)
-        cluster1 = KMeans(n_clusters=n, random_state=3).fit(dis_mat1)
-        base_labels = cluster1.labels_
-        for i in range(n):
-            index = np.argwhere(base_labels == i)
-            index = index.reshape(len(index))
-            inputs.append(c1_data[index])
-        if n == 2:
-            t_stat_base, pvalue_base = stats.ttest_ind(inputs[0], inputs[1])
-            print(inputs[0], inputs[1])
-        if n == 3:
-            t_stat_base, pvalue_base = f_oneway(inputs[0], inputs[1], inputs[2])
-        if n == 4:
-            t_stat_base, pvalue_base = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3]
-            )
-        if n == 5:
-            t_stat_base, pvalue_base = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-            )
-        if n == 6:
-            t_stat_base, pvalue_base = f_oneway(
-                inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5]
-            )
+    print(sorted(dic, key=dic.get)[:10])
 
-        pvalue_base[np.isnan(pvalue_base)] = 1
 
-        pvalue_base = pvalue_base.astype(np.float32)
-        if n == 2:
-            large = np.mean(inputs[0], axis=0) > np.mean(inputs[1], axis=0)
-            print(large.shape)
-            temp = []
-            for i in range(len(large)):
-                if large[i]:
-                    temp.append(1)
-                else:
-                    temp.append(pvalue_base[i] / 2)
-            pvalue_base = np.array(temp)
-        min_value = min(collections.Counter(base_labels).values())
-        if min_value < 5:
-            continue
-        else:
-            break
-    print(
-        c1,
-        roc_auc_score(gt_vec, 1 - pvalue_base),
-        roc_auc_score(gt_vec, 1 - pvalue_gen),
-    )
-    s += roc_auc_score(gt_vec, 1 - pvalue_gen)
-    with open("new2.csv", "a") as f:
-        writer = csv.writer(f)
-        writer.writerow(
-            [
-                c1,
-                roc_auc_score(gt_vec, 1 - pvalue_base),
-                roc_auc_score(gt_vec, 1 - pvalue_gen),
-            ]
-        )
-
-    if roc_auc_score(gt_vec, 1 - pvalue_base) < roc_auc_score(gt_vec, 1 - pvalue_gen):
-        count += 1
-print(count, s)
+if __name__ == "__main__":
+    main()
 
