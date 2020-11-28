@@ -22,6 +22,7 @@ Tumor stratification, which aims at clustering tumors into biologically meaningf
 </p>
 
 # Dataset
+download from http://gdac.broadinstitute.org/ \
 patients' mutation data are in raw_survival/\*\_mut.txt &nbsp; * are cancer type names\
 patients' survival data are in raw_survival/\*\_surv.txt_clean &nbsp; * are cancer type names\
 A preprocessed file that contains the cancer type, mutatated genes for each patient: data.csv\
