@@ -23,10 +23,15 @@ Tumor stratification, which aims at clustering tumors into biologically meaningf
 
 # Dataset
 download from http://gdac.broadinstitute.org/ \
-patients' mutation data are in raw_survival/\*\_mut.txt &nbsp; * are cancer type names\
-patients' survival data are in raw_survival/\*\_surv.txt_clean &nbsp; * are cancer type names\
-A preprocessed file that contains the cancer type, mutatated genes for each patient: data.csv\
-A known cancer gene list known_cancer_genes.csv
+In total, we collected somatic mutation profiles of 7,134 tumors belonging to 24 different cancer cohorts, including BRCA, BLCA, CESC, CHOL, COAD, DLBC, GBM, HNSC, KICH, KIRC, LGG, LIHC, LUAD, LUSC. OV, PAAD, PRAD, READ, SARC, STES, TFCT, THCA, UCEC, UVM.
+
+patients' mutation data are in raw_survival/\*\_mut.txt &nbsp; * are cancer type names
+
+patients' survival data are in raw_survival/\*\_surv.txt_clean &nbsp; * are cancer type names
+
+A preprocessed file that contains the cancer type, mutatated genes for each patient: data.csv
+
+A known cancer gene list: known_cancer_genes.csv
 
 # Experiments
 To run the cancerAlign for a specific target cancer type:
